@@ -1,0 +1,10 @@
+.claude/
+.wrangler/
+worker/
+scripts/
+videos/
+node_modules/
+*.log
+.DS_Store
+PNG image.png
+images-needed.txt

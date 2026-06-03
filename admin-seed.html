@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seed Products to Firestore — tradeinplus</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+body{background:#0a0a0a;color:#fff;padding:30px;min-height:100vh}
+.container{max-width:780px;margin:0 auto}
+h1{font-size:24px;margin-bottom:8px}
+.subtitle{color:rgba(255,255,255,.5);margin-bottom:30px;font-size:14px}
+.card{background:#1a1a1f;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;margin-bottom:20px}
+.warning{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.4);color:#f5a623;padding:14px 18px;border-radius:12px;margin-bottom:20px;font-size:14px;line-height:1.6}
+button{padding:14px 28px;background:#1d7a4e;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:transform .2s}
+button:hover{transform:translateY(-2px)}
+button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-danger{background:#c0392b}
+.log{background:#0d0d10;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:18px;font-family:'SF Mono',Monaco,monospace;font-size:13px;max-height:380px;overflow-y:auto;margin-top:18px;line-height:1.7}
+.log-line{margin-bottom:4px}
+.log-ok{color:#56e39a}
+.log-err{color:#ff6b6b}
+.log-info{color:rgba(255,255,255,.7)}
+.progress{background:rgba(255,255,255,.08);border-radius:10px;height:8px;overflow:hidden;margin:14px 0}
+.progress-bar{background:linear-gradient(90deg,#1d7a4e,#56e39a);height:100%;width:0;transition:width .3s}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🌱 Seed Products to Firestore</h1>
+  <p class="subtitle">صفحة مرة واحدة فقط لرفع كل المنتجات لقاعدة البيانات</p>
+
+  <div class="warning">
+    <strong>تنبيه:</strong> هذه الصفحة ترفع كل المنتجات لـ Firestore. لو الـ products موجودة بالفعل، الزرار هيحدّثها (overwrite). لا تشاركها للعامة.
+  </div>
+
+  <div class="card">
+    <p style="margin-bottom:16px;font-size:14px;color:rgba(255,255,255,.7)">سيتم رفع <strong style="color:#fff" id="count">--</strong> منتج لـ Firestore collection: <code style="background:rgba(255,255,255,.08);padding:2px 8px;border-radius:4px">products</code></p>
+    <button id="seedBtn">🚀 ابدأ الرفع</button>
+    <button id="seedStoresBtn" style="margin-right:10px;background:#2563eb">🏪 رفع الفروع</button>
+
+    <div class="progress" style="display:none" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="log" id="log" style="display:none"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAWfHruX62nXJwCi-sGWKgHW58w0sYvgMc",
+  authDomain: "tradeinplus-ecc07.firebaseapp.com",
+  projectId: "tradeinplus-ecc07",
+  storageBucket: "tradeinplus-ecc07.firebasestorage.app",
+  messagingSenderId: "396037571839",
+  appId: "1:396037571839:web:20e5d4f5125636559d78ca"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ─── Products data ───
+const products = [
+  { slug: 'iphone-17-pro-max', name: 'iPhone 17 Pro Max', category: 'iPhone', price: 107700, stock: 10, isVisible: true, sortOrder: 1 },
+  { slug: 'iphone-17-pro', name: 'iPhone 17 Pro', category: 'iPhone', price: 97900, stock: 10, isVisible: true, sortOrder: 2 },
+  { slug: 'iphone-17', name: 'iPhone 17', category: 'iPhone', price: 72900, stock: 15, isVisible: true, sortOrder: 3 },
+  { slug: 'iphone-17-air', name: 'iPhone Air', category: 'iPhone', price: 77700, stock: 12, isVisible: true, sortOrder: 4 },
+  { slug: 'iphone-16-pro-max', name: 'iPhone 16 Pro Max', category: 'iPhone', price: 79999, stock: 8, isVisible: true, sortOrder: 5 },
+  { slug: 'iphone-16-pro', name: 'iPhone 16 Pro', category: 'iPhone', price: 69999, stock: 10, isVisible: true, sortOrder: 6 },
+  { slug: 'iphone-16-plus', name: 'iPhone 16 Plus', category: 'iPhone', price: 69990, stock: 8, isVisible: true, sortOrder: 7 },
+  { slug: 'iphone-16', name: 'iPhone 16', category: 'iPhone', price: 59990, stock: 15, isVisible: true, sortOrder: 8 },
+  { slug: 'iphone-16e', name: 'iPhone 16e', category: 'iPhone', price: 39999, stock: 15, isVisible: true, sortOrder: 9 },
+  { slug: 'iphone-15-pro-max', name: 'iPhone 15 Pro Max', category: 'iPhone', price: 64999, stock: 6, isVisible: true, sortOrder: 10 },
+  { slug: 'iphone-15-pro', name: 'iPhone 15 Pro', category: 'iPhone', price: 54999, stock: 8, isVisible: true, sortOrder: 11 },
+  { slug: 'iphone-15-plus', name: 'iPhone 15 Plus', category: 'iPhone', price: 49999, stock: 8, isVisible: true, sortOrder: 12 },
+  { slug: 'iphone-15', name: 'iPhone 15', category: 'iPhone', price: 52900, stock: 10, isVisible: true, sortOrder: 13 },
+  { slug: 'iphone-14-pro-max', name: 'iPhone 14 Pro Max', category: 'iPhone', price: 49999, stock: 5, isVisible: true, sortOrder: 14 },
+  { slug: 'iphone-14-pro', name: 'iPhone 14 Pro', category: 'iPhone', price: 39999, stock: 6, isVisible: true, sortOrder: 15 },
+  { slug: 'iphone-14-plus', name: 'iPhone 14 Plus', category: 'iPhone', price: 36999, stock: 5, isVisible: true, sortOrder: 16 },
+  { slug: 'iphone-14', name: 'iPhone 14', category: 'iPhone', price: 32999, stock: 8, isVisible: true, sortOrder: 17 },
+  { slug: 'iphone-13-pro-max', name: 'iPhone 13 Pro Max', category: 'iPhone', price: 32999, stock: 4, isVisible: true, sortOrder: 18 },
+  { slug: 'iphone-13-pro', name: 'iPhone 13 Pro', category: 'iPhone', price: 28999, stock: 5, isVisible: true, sortOrder: 19 },
+  { slug: 'iphone-13', name: 'iPhone 13', category: 'iPhone', price: 24999, stock: 8, isVisible: true, sortOrder: 20 },
+  { slug: 'iphone-13-mini', name: 'iPhone 13 mini', category: 'iPhone', price: 22999, stock: 5, isVisible: true, sortOrder: 21 },
+  { slug: 'iphone-12-pro-max', name: 'iPhone 12 Pro Max', category: 'iPhone', price: 21999, stock: 4, isVisible: true, sortOrder: 22 },
+  { slug: 'iphone-12-pro', name: 'iPhone 12 Pro', category: 'iPhone', price: 18999, stock: 5, isVisible: true, sortOrder: 23 },
+  { slug: 'iphone-12', name: 'iPhone 12', category: 'iPhone', price: 16999, stock: 6, isVisible: true, sortOrder: 24 },
+  { slug: 'iphone-12-mini', name: 'iPhone 12 mini', category: 'iPhone', price: 14999, stock: 4, isVisible: true, sortOrder: 25 },
+  { slug: 'iphone-11-pro-max', name: 'iPhone 11 Pro Max', category: 'iPhone', price: 16999, stock: 3, isVisible: true, sortOrder: 26 },
+  { slug: 'iphone-11-pro', name: 'iPhone 11 Pro', category: 'iPhone', price: 13999, stock: 4, isVisible: true, sortOrder: 27 },
+  { slug: 'iphone-11', name: 'iPhone 11', category: 'iPhone', price: 11999, stock: 6, isVisible: true, sortOrder: 28 },
+  { slug: 'iphone-se-3', name: 'iPhone SE (3rd gen)', category: 'iPhone', price: 14999, stock: 5, isVisible: true, sortOrder: 29 },
+  { slug: 'iphone-se-2', name: 'iPhone SE (2nd gen)', category: 'iPhone', price: 8999, stock: 4, isVisible: true, sortOrder: 30 },
+  { slug: 'iphone-xs-max', name: 'iPhone XS Max', category: 'iPhone', price: 9999, stock: 3, isVisible: true, sortOrder: 31 },
+  { slug: 'iphone-xs', name: 'iPhone XS', category: 'iPhone', price: 7999, stock: 3, isVisible: true, sortOrder: 32 },
+  { slug: 'iphone-xr', name: 'iPhone XR', category: 'iPhone', price: 6999, stock: 5, isVisible: true, sortOrder: 33 },
+  { slug: 'iphone-x', name: 'iPhone X', category: 'iPhone', price: 6499, stock: 3, isVisible: true, sortOrder: 34 },
+  { slug: 'iphone-8-plus', name: 'iPhone 8 Plus', category: 'iPhone', price: 4999, stock: 4, isVisible: true, sortOrder: 35 },
+  { slug: 'iphone-8', name: 'iPhone 8', category: 'iPhone', price: 3999, stock: 5, isVisible: true, sortOrder: 36 },
+  { slug: 'iphone-7-plus', name: 'iPhone 7 Plus', category: 'iPhone', price: 3499, stock: 3, isVisible: true, sortOrder: 37 },
+  { slug: 'iphone-7', name: 'iPhone 7', category: 'iPhone', price: 2999, stock: 4, isVisible: true, sortOrder: 38 },
+
+  { slug: 'macbook-pro', name: 'MacBook Pro M4 14"', category: 'Mac', price: 119990, stock: 6, isVisible: true, sortOrder: 50 },
+  { slug: 'macbook-air', name: 'MacBook Air M3 15"', category: 'Mac', price: 75500, stock: 8, isVisible: true, sortOrder: 51 },
+  { slug: 'imac', name: 'iMac M4', category: 'Mac', price: 64999, stock: 5, isVisible: true, sortOrder: 52 },
+  { slug: 'mac-mini', name: 'Mac mini M4', category: 'Mac', price: 27999, stock: 8, isVisible: true, sortOrder: 53 },
+  { slug: 'mac-pro', name: 'Mac Pro M2 Ultra', category: 'Mac', price: 219999, stock: 2, isVisible: true, sortOrder: 54 },
+
+  { slug: 'ipad-pro', name: 'iPad Pro M4', category: 'iPad', price: 79999, stock: 6, isVisible: true, sortOrder: 60 },
+  { slug: 'ipad-air', name: 'iPad Air M2', category: 'iPad', price: 42999, stock: 8, isVisible: true, sortOrder: 61 },
+  { slug: 'ipad-mini', name: 'iPad mini', category: 'iPad', price: 36900, stock: 6, isVisible: true, sortOrder: 62 },
+  { slug: 'ipad', name: 'iPad (10th gen)', category: 'iPad', price: 14999, stock: 10, isVisible: true, sortOrder: 63 },
+
+  { slug: 'apple-watch-ultra-2', name: 'Apple Watch Ultra 2', category: 'Watch', price: 39999, stock: 5, isVisible: true, sortOrder: 70 },
+  { slug: 'apple-watch-series-10', name: 'Apple Watch Series 10', category: 'Watch', price: 24500, stock: 8, isVisible: true, sortOrder: 71 },
+  { slug: 'apple-watch-se', name: 'Apple Watch SE', category: 'Watch', price: 12999, stock: 10, isVisible: true, sortOrder: 72 },
+
+  { slug: 'airpods-pro-2', name: 'AirPods Pro 2', category: 'AirPods', price: 13900, stock: 12, isVisible: true, sortOrder: 80 },
+  { slug: 'airpods-max', name: 'AirPods Max', category: 'AirPods', price: 33300, stock: 4, isVisible: true, sortOrder: 81 },
+  { slug: 'airpods-4', name: 'AirPods 4', category: 'AirPods', price: 9900, stock: 15, isVisible: true, sortOrder: 82 },
+
+  { slug: 'apple-tv-4k', name: 'Apple TV 4K (3rd gen)', category: 'Other', price: 7499, stock: 6, isVisible: true, sortOrder: 90 },
+  { slug: 'airtag-1-pack', name: 'AirTag', category: 'Other', price: 1499, stock: 20, isVisible: true, sortOrder: 91 },
+  { slug: 'airtag-4-pack', name: 'AirTag (4 قطع)', category: 'Other', price: 4999, stock: 10, isVisible: true, sortOrder: 92 },
+
+  { slug: 'anker-735-charger-65w', name: 'Anker 735 Charger (GaN 65W)', category: 'Accessories', price: 1899, stock: 20, isVisible: true, sortOrder: 100 },
+  { slug: 'anker-magsafe-powerbank', name: 'Anker MagSafe Power Bank', category: 'Accessories', price: 2799, stock: 15, isVisible: true, sortOrder: 101 },
+  { slug: 'anker-powercore-10000', name: 'Anker PowerCore 10000', category: 'Accessories', price: 1199, stock: 20, isVisible: true, sortOrder: 102 },
+  { slug: 'anker-usbc-cable', name: 'Anker USB-C to USB-C Cable', category: 'Accessories', price: 1200, stock: 30, isVisible: true, sortOrder: 103 },
+  { slug: 'anker-usbc-lightning-cable', name: 'Anker USB-C to Lightning Cable', category: 'Accessories', price: 549, stock: 25, isVisible: true, sortOrder: 104 },
+  { slug: 'accessories-chargers', name: 'Chargers & Cables', category: 'Accessories', price: 1800, stock: 30, isVisible: true, sortOrder: 105 },
+  { slug: 'accessories-cases', name: 'Cases & Protection', category: 'Accessories', price: 1299, stock: 30, isVisible: true, sortOrder: 106 },
+  { slug: 'accessories-keyboards', name: 'Keyboards & Mice', category: 'Accessories', price: 4999, stock: 15, isVisible: true, sortOrder: 107 },
+  { slug: 'accessories-displays', name: 'Displays', category: 'Accessories', price: 89999, stock: 4, isVisible: true, sortOrder: 108 }
+];
+
+// ─── Stores data (Alexandria, 3 branches) ───
+const stores = [
+  { id: 'store-main', name: 'tradeinplus', nameAr: 'الفرع الرئيسي', badge: 'الفرع الرئيسي',
+    address: 'صف جامع حاتم، شارع المعهد الديني', city: 'الإسكندرية',
+    phone: '+201112214212', hours: '10 AM – 12 PM', lat: 31.2125, lng: 29.946889, active: true },
+  { id: 'store-tradein', name: 'Trade In', nameAr: 'فرع Trade In', badge: 'فرع',
+    address: 'شارع المستشار محمود العطار', city: 'الإسكندرية',
+    phone: '+201112214212', hours: '10 AM – 12 PM', lat: 31.212476, lng: 29.946168, active: true },
+  { id: 'store-accessories', name: 'Momen Mobile Store', nameAr: 'فرع الاكسسوار', badge: 'فرع الاكسسوار',
+    address: 'شارع المستشار محمود العطار', city: 'الإسكندرية',
+    phone: '+201112214212', hours: '10 AM – 12 PM', lat: 31.212476, lng: 29.946168, active: true }
+];
+
+// UI
+const logEl = document.getElementById('log');
+const seedBtn = document.getElementById('seedBtn');
+const seedStoresBtn = document.getElementById('seedStoresBtn');
+const progressContainer = document.getElementById('progressContainer');
+const progressBar = document.getElementById('progressBar');
+document.getElementById('count').textContent = products.length;
+
+function log(msg, type='info') {
+  const line = document.createElement('div');
+  line.className = 'log-line log-' + type;
+  line.textContent = msg;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+seedBtn.addEventListener('click', async () => {
+  seedBtn.disabled = true;
+  seedStoresBtn.disabled = true;
+  logEl.style.display = 'block';
+  progressContainer.style.display = 'block';
+  log('⏳ بدء الرفع...', 'info');
+
+  let ok = 0, fail = 0;
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i];
+    try {
+      await setDoc(doc(db, 'products', p.slug), {
+        ...p,
+        image: `/images/${p.slug}.webp`,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp()
+      });
+      ok++;
+      log(`✓ ${p.name} — ${p.price.toLocaleString()} EGP`, 'ok');
+    } catch (e) {
+      fail++;
+      log(`✗ ${p.name} — ${e.message}`, 'err');
+    }
+    progressBar.style.width = ((i + 1) / products.length * 100) + '%';
+  }
+
+  log('', 'info');
+  log(`✅ تم رفع ${ok} منتج${fail ? ` — فشل ${fail}` : ''}`, fail ? 'err' : 'ok');
+  seedBtn.textContent = '✓ تم';
+  seedStoresBtn.disabled = false;
+});
+
+seedStoresBtn.addEventListener('click', async () => {
+  seedStoresBtn.disabled = true;
+  logEl.style.display = 'block';
+  log('⏳ بدء رفع الفروع...', 'info');
+  let ok = 0, fail = 0;
+  for (const s of stores) {
+    try {
+      const { id, ...data } = s;
+      await setDoc(doc(db, 'stores', id), { ...data, updatedAt: serverTimestamp(), createdAt: serverTimestamp() });
+      ok++;
+      log(`✓ ${s.name} — ${s.nameAr}`, 'ok');
+    } catch (e) {
+      fail++;
+      log(`✗ ${s.name} — ${e.message}`, 'err');
+    }
+  }
+  log(`✅ تم رفع ${ok} فرع${fail ? ` — فشل ${fail}` : ''}`, fail ? 'err' : 'ok');
+  seedStoresBtn.textContent = '✓ تم';
+});
+</script>
+</body>
+</html>

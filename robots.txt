@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Block admin/dev pages
+Disallow: /admin-seed.html
+Disallow: /trade-in-manager.html
+Disallow: /.claude/
+Disallow: /worker/
+Disallow: /js/seed-data.js
+
+Sitemap: https://tradeinplus-1jv.pages.dev/sitemap.xml

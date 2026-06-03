@@ -1,0 +1,10 @@
+.claude
+.wrangler
+.git
+.gitignore
+.cfignore
+worker
+scripts
+videos
+node_modules
+*.log
