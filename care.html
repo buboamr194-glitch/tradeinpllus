@@ -556,6 +556,7 @@ input,select,textarea{font-size:max(16px,1em)}
   </div>
   <div class="footer-bottom">
     <small class="footer-copy" lang="en">© 2026 Trade In Plus. All rights reserved.</small>
+    <a href="https://tradeinplus-admin.pages.dev" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:rgba(255,255,255,0.2);text-decoration:none" title="Admin">⚙ Admin</a>
     <ul class="footer-social">
       <li><a href="#" class="social-link" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/></svg></a></li>
       <li><a href="#" class="social-link" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg></a></li>
@@ -673,5 +674,7 @@ input,select,textarea{font-size:max(16px,1em)}
 <script src="js/live-everywhere.js?v=2"></script>
 <script src="js/email-service.js?v=1"></script>
 <script src="js/cart.js?v=1"></script>
+<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});</script>
+<script defer src="js/tip-search.js"></script>
 </body>
 </html>

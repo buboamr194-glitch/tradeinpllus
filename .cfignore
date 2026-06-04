@@ -8,3 +8,19 @@ scripts
 videos
 node_modules
 *.log
+.local-only
+*-seed.html
+seed-*.html
+firestore.rules
+storage.rules
+images-needed.txt
+ui-ux-pro-max-skill
+used
+rrr
+kkkkkkkkkk
+kllll
+koko
+kokooo
+program
+*.md
+PNG image.png

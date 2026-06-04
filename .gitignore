@@ -8,3 +8,7 @@ node_modules/
 .DS_Store
 PNG image.png
 images-needed.txt
+.local-only/
+*-seed.html
+seed-*.html
+ui-ux-pro-max-skill/

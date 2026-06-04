@@ -10,9 +10,9 @@
 (function(){
   'use strict';
 
-  const EMAILJS_PUBLIC_KEY  = '';   // e.g. "abc123_publicKey"
-  const EMAILJS_SERVICE_ID  = '';   // e.g. "service_xxxxxxx"
-  const EMAILJS_TEMPLATE_ID = '';   // e.g. "template_xxxxxxx"
+  const EMAILJS_PUBLIC_KEY  = 'OD8b2kgiVMilsswKm';
+  const EMAILJS_SERVICE_ID  = 'service_milgtfi';
+  const EMAILJS_TEMPLATE_ID = 'template_z75hjp8';
 
   let emailJsLoaded = false;
   let emailJsLoading = null;

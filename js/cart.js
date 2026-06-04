@@ -298,134 +298,37 @@
     }
   }, true);
 
-  // ─── Cart checkout: collect customer info, save multi-item order to Firebase ───
+  // ─── Cart checkout: hand off to the unified Checkout Gateway ───
   async function openCartCheckout() {
     const items = readCart();
     if (items.length === 0) return;
-    const total = cartTotal();
 
-    // Build a checkout overlay (same look as order-system)
-    if (document.getElementById('cart-checkout-overlay')) {
-      document.getElementById('cart-checkout-overlay').remove();
+    // Close cart drawer
+    const drawer = document.getElementById('tip-cart-drawer');
+    if (drawer) drawer.classList.remove('show');
+
+    if (!window.__tipCheckout || typeof window.__tipCheckout.open !== 'function') {
+      console.warn('Checkout gateway not loaded');
+      return;
     }
 
-    const html = `
-      <div id="cart-checkout-overlay" role="dialog" aria-modal="true" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:99997;display:flex;align-items:center;justify-content:center;padding:16px;font-family:'Cairo',sans-serif;direction:rtl">
-        <div id="cart-checkout-box" style="background:linear-gradient(145deg,#1a1a1f,#0d0d10);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:30px 26px 26px;max-width:480px;width:100%;max-height:92vh;overflow-y:auto;position:relative">
-          <button type="button" id="cart-checkout-close" aria-label="إغلاق" style="position:absolute;top:14px;left:14px;background:rgba(255,255,255,.08);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;color:#fff;font-size:18px">&times;</button>
-          <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 4px;text-align:center">إتمام الطلب</h2>
-          <p style="color:rgba(255,255,255,.55);font-size:13px;text-align:center;margin:0 0 18px">${items.length} منتج · ${fmt(total)} EGP</p>
+    const total = cartTotal();
+    const itemNames = items.map(i => {
+      const qty = i.qty > 1 ? ` ×${i.qty}` : '';
+      const variant = i.variant ? ` (${i.variant})` : '';
+      return `${i.name}${variant}${qty}`;
+    }).join(' · ');
 
-          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;margin-bottom:18px;max-height:170px;overflow-y:auto">
-            ${items.map(i => `
-              <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12.5px">
-                ${i.image ? `<img src="${i.image}" style="width:34px;height:34px;border-radius:8px;object-fit:contain;background:rgba(255,255,255,.05)" onerror="this.style.display='none'">` : ''}
-                <div style="flex:1;color:#fff">${i.name}${i.variant ? ` <span style="color:rgba(255,255,255,.5);font-size:11px">(${i.variant})</span>` : ''} <span style="color:rgba(255,255,255,.5)">× ${i.qty || 1}</span></div>
-                <div style="color:#56e39a;font-weight:700;font-family:'Outfit',sans-serif;direction:ltr">${fmt((i.price||0)*(i.qty||1))}</div>
-              </div>
-            `).join('')}
-          </div>
-
-          <form id="cart-checkout-form" style="display:flex;flex-direction:column;gap:12px">
-            <input type="text" name="customerName" required placeholder="الاسم بالكامل *" style="padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;font-family:inherit">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <input type="tel" name="customerPhone" required placeholder="01xxxxxxxxx *" dir="ltr" style="padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;font-family:inherit">
-              <input type="text" name="customerCity" required placeholder="المدينة *" style="padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;font-family:inherit">
-            </div>
-            <input type="email" name="customerEmail" placeholder="البريد الإلكتروني (لإيميل التأكيد)" dir="ltr" style="padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;font-family:inherit">
-            <input type="text" name="customerAddress" required placeholder="العنوان بالتفصيل *" style="padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;font-family:inherit">
-            <select name="paymentMethod" required style="padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;font-family:inherit">
-              <option value="cash">كاش عند الاستلام</option>
-              <option value="vodafone_cash">فودافون كاش</option>
-              <option value="instapay">إنستاباي</option>
-            </select>
-            <textarea name="notes" placeholder="ملاحظات (اختياري)" style="padding:12px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;font-family:inherit;min-height:60px;resize:vertical"></textarea>
-            <button type="submit" id="cart-checkout-submit" style="padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,#1d7a4e,#155c3a);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:6px">تأكيد الطلب (${fmt(total)} EGP)</button>
-          </form>
-        </div>
-      </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', html);
-
-    const overlay = document.getElementById('cart-checkout-overlay');
-    document.getElementById('cart-checkout-close').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-    document.getElementById('cart-checkout-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('cart-checkout-submit');
-      btn.disabled = true;
-      btn.textContent = 'جاري تسجيل الطلب...';
-      const fd = new FormData(e.target);
-
-      const orderNumber = 'TI-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
-      const productNames = items.map(i => `${i.name}${i.variant ? ` (${i.variant})` : ''} × ${i.qty || 1}`).join(' · ');
-      const orderData = {
-        orderNumber,
-        productName: productNames,
-        productSlug: items.map(i => i.slug).join(','),
-        variant: '',
+    setTimeout(() => {
+      window.__tipCheckout.open({
+        name: items.length === 1 ? items[0].name : `سلة (${items.length} منتج)`,
         price: total,
         image: items[0]?.image || '',
-        items: items,
-        customerName: fd.get('customerName'),
-        customerPhone: fd.get('customerPhone'),
-        customerCity: fd.get('customerCity'),
-        customerAddress: fd.get('customerAddress'),
-        customerEmail: fd.get('customerEmail') || '',
-        paymentMethod: fd.get('paymentMethod'),
-        notes: fd.get('notes') || '',
-        status: 'new'
-      };
-
-      try {
-        const [{ initializeApp }, { getFirestore, collection, addDoc, serverTimestamp }] = await Promise.all([
-          import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js'),
-          import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
-        ]);
-        const app = initializeApp(FIREBASE_CONFIG);
-        const db = getFirestore(app);
-        await addDoc(collection(db, 'orders'), { ...orderData, createdAt: serverTimestamp() });
-      } catch (err) {
-        console.warn('Firebase save failed:', err);
-      }
-
-      // Send confirmation email (silently fails if EmailJS not configured)
-      if (window.__tipEmail && orderData.customerEmail) {
-        window.__tipEmail.sendOrderConfirmation(orderData).catch(()=>{});
-      }
-
-      // Success screen
-      document.getElementById('cart-checkout-box').innerHTML = `
-        <div style="text-align:center;padding:30px 10px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#56e39a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:64px;height:64px;margin-bottom:16px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          <h3 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 8px">تم تسجيل طلبك بنجاح!</h3>
-          <p style="color:rgba(255,255,255,.6);font-size:14px;margin:0 0 6px">رقم الطلب</p>
-          <div style="color:#56e39a;font-size:18px;font-weight:700;font-family:'Outfit',sans-serif;direction:ltr;margin:12px 0">${orderNumber}</div>
-          <p style="color:rgba(255,255,255,.6);font-size:14px;margin:0">هنتواصل معاك قريب لتأكيد الطلب</p>
-        </div>
-      `;
-
-      // Empty cart + open WhatsApp
-      clearCart();
-      setTimeout(() => {
-        const msg = encodeURIComponent(
-          `🛒 طلب سلة جديد!\n` +
-          `رقم الطلب: ${orderNumber}\n` +
-          `عدد المنتجات: ${items.length}\n` +
-          `الإجمالي: ${fmt(total)} EGP\n\n` +
-          `الأصناف:\n${productNames}\n\n` +
-          `───────────\n` +
-          `الاسم: ${orderData.customerName}\n` +
-          `الرقم: ${orderData.customerPhone}\n` +
-          `العنوان: ${orderData.customerAddress}\n` +
-          `المدينة: ${orderData.customerCity}\n` +
-          `الدفع: ${orderData.paymentMethod}\n` +
-          `ملاحظات: ${orderData.notes || 'لا يوجد'}`
-        );
-        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, '_blank');
-      }, 1500);
-    });
+        variant: items.length === 1 ? items[0].variant : itemNames,
+        slug: items.map(i => i.slug).filter(Boolean).join(','),
+        cartItems: items
+      });
+    }, 200);
   }
 
   // ─── Init ───
@@ -437,5 +340,5 @@
   }
 
   // Expose
-  window.__tipCart = { add: addToCart, count: cartCount, open: openDrawer };
+  window.__tipCart = { add: addToCart, count: cartCount, open: openDrawer, clearCart: clearCart };
 })();
